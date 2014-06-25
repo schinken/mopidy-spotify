@@ -2,6 +2,8 @@ from __future__ import unicode_literals
 
 import logging
 import os
+import re
+import time
 import threading
 
 from spotify.manager import SpotifySessionManager as PyspotifySessionManager
@@ -17,6 +19,53 @@ logger = logging.getLogger(__name__)
 
 BITRATES = {96: 2, 160: 0, 320: 1}
 
+class SpotifyLoginManager:
+
+    logins = []
+
+    def __init__(config):
+        self.config = config
+
+        if self.pooling_enabled():
+            self.logins = self.build_logins()
+        else:
+            self.logins = self.build_login()
+
+    def build_login():
+        return [{
+            'username': self.config['username'],
+            'password': self.config['password'],
+            'lastused': 0
+        }]
+
+    def build_logins():
+
+        logins = []
+        for key in self.config:
+
+            m = re.match(r'username_(\d+)', key)
+            if not m:
+                continue
+
+            logins.append({
+                'username': self.config[key],
+                'password': self.config['password_' + m.group(1)],
+                'lastused': 0
+            })
+
+        return logins
+
+    def pooling_enabled(self):
+        return 'login_pool' in self.config and self.config['login_pool']
+
+    def get_login(self):
+        last = sorted(self.logins, key=lambda t: t[1])[0]
+        last['lastused'] = time.time()
+
+        return (last['username'], last['password'])
+
+
+
 
 class SpotifySessionManager(process.BaseThread, PyspotifySessionManager):
     cache_location = None
@@ -29,6 +78,9 @@ class SpotifySessionManager(process.BaseThread, PyspotifySessionManager):
         self.cache_location = config['spotify']['cache_dir']
         self.settings_location = config['spotify']['settings_dir']
 
+        self.logins = SpotifyLoginManager(config['spotify'])
+        username, password = self.logins.get_login()
+
         full_proxy = ''
         if config['proxy']['hostname']:
             full_proxy = config['proxy']['hostname']
@@ -38,7 +90,7 @@ class SpotifySessionManager(process.BaseThread, PyspotifySessionManager):
                 full_proxy = config['proxy']['scheme'] + "://" + full_proxy
 
         PyspotifySessionManager.__init__(
-            self, config['spotify']['username'], config['spotify']['password'],
+            self, username, password,
             proxy=full_proxy,
             proxy_username=config['proxy']['username'],
             proxy_password=config['proxy']['password'])
@@ -145,7 +197,14 @@ class SpotifySessionManager(process.BaseThread, PyspotifySessionManager):
     def play_token_lost(self, session):
         """Callback used by pyspotify"""
         logger.debug('Play token lost')
+
         self.backend.playback.pause()
+
+        self.username, self.password = self.logins.get_login()
+        self.connect()
+        
+        self.backend.playback.play()
+        
 
     def log_message(self, session, data):
         """Callback used by pyspotify"""
