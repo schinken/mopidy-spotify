@@ -27,10 +27,10 @@ class SpotifyLoginManager:
         self.config = config
 
         if self.pooling_enabled():
-            logger.debug('Pooling is enabled')
+            logger.info('Pooling is enabled')
             self.logins = self.build_logins()
         else:
-            logger.debug('Pooling is disbled')
+            logger.info('Pooling is disabled')
             self.logins = self.build_login()
 
     def build_login(self):
@@ -43,21 +43,29 @@ class SpotifyLoginManager:
 
     def build_logins(self):
 
-        logins = []
+        logins = [{
+            'index': 0,
+            'username': self.config['username'],
+            'password': self.config['password'],
+            'lastused': 0
+        }]
+
         for key in self.config:
 
             m = re.match(r'username_(\d+)', key)
             if not m:
                 continue
 
+            num = m.group(1) 
+
             logins.append({
-                'index': key,
+                'index': int(num)+1,
                 'username': self.config[key],
-                'password': self.config['password_' + m.group(1)],
+                'password': self.config['password_' + num],
                 'lastused': 0
             })
 
-        logger.debug('Found %d logins' % (len(logins)))
+        logger.info('Found %d logins' % (len(logins)))
         return logins
 
     def pooling_enabled(self):
@@ -67,7 +75,7 @@ class SpotifyLoginManager:
         last = sorted(self.logins, key=lambda t: t['lastused'])[0]
         last['lastused'] = time.time()
 
-        logger.debug('Using login index=%d, user=%s, lastused=%d' % 
+        logger.info('Using login index=%d, user=%s, lastused=%d' % 
                 (last['index'], last['username'], last['lastused']))
 
         return (last['username'], last['password'])
