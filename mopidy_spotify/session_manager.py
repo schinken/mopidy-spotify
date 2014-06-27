@@ -23,7 +23,7 @@ class SpotifyLoginManager:
 
     logins = []
 
-    def __init__(config):
+    def __init__(self, config):
         self.config = config
 
         if self.pooling_enabled():
@@ -33,7 +33,7 @@ class SpotifyLoginManager:
             logger.debug('Pooling is disbled')
             self.logins = self.build_login()
 
-    def build_login():
+    def build_login(self):
         return [{
             'index': 0,
             'username': self.config['username'],
@@ -41,7 +41,7 @@ class SpotifyLoginManager:
             'lastused': 0
         }]
 
-    def build_logins():
+    def build_logins(self):
 
         logins = []
         for key in self.config:
