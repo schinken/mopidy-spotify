@@ -5,7 +5,7 @@ import os
 from mopidy import config, ext
 
 
-__version__ = '1.2.0'
+__version__ = '1.1.3'
 
 
 class Extension(ext.Extension):
@@ -27,6 +27,12 @@ class Extension(ext.Extension):
         schema['cache_dir'] = config.Path(optional=True)
         schema['settings_dir'] = config.Path()
         schema['toplist_countries'] = config.List(optional=True)
+
+        schema['login_pool'] = config.Boolean()
+        for num in xrange(4):
+            schema['username_'+str(num)] = config.String(optional=True)
+            schema['password_'+str(num)] = config.Secret(optional=True)
+
         return schema
 
     def setup(self, registry):
